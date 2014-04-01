@@ -1,3 +1,5 @@
+本文翻译自：http://engineering.linkedin.com/performance/optimizing-linux-memory-management-low-latency-high-throughput-databases
+
 简介：
 
 图形数据库GraphDB是LinkedIn的实时分布式社交网络服务的存储层。我们的服务处理简单的查询(like the first and second degree networks of LinkedIn members as well),还有一些更复杂的查询，比如各个成员之间的图形距离，各个成员之间的路径等等。我们支持多节点和边缘类型以及process all queries  on the fly。
