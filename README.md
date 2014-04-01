@@ -2,6 +2,6 @@
 
 ##版本库地址
 支持三种访问协议：
-*HTTP协议:https://github.com/helianthuslulu/helianthus_lu.git
-*Git协议:git://github.com/helianthuslulu/Qt-Programming.git
-*SSH协议:ssh://git@github.com/helianthuslulu/Qt-Programming.git
+*HTTP协议:https://github.com/helianthuslulu/memory-database.git
+*Subversion:https://github.com/helianthuslulu/memory-database
+*SSH协议:git@github.com:helianthuslulu/memory-database.git
