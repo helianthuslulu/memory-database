@@ -1,0 +1,133 @@
+内存数据库：
+内存数据库是指一种将全部内容存放在内存中，而非传统数据库那样存放在外存储器中的数据库。内存数据库的所有的数据访问控制都在
+内存中进行，这是与磁盘数据库相对而言的，磁盘数据库虽然也有一定的缓存机制，但都不可避免从外设到内存的交换，而这种交换过程
+对性能的损耗是致命的。由于内存的读写速度极快(双通道DDR3-1333可以达到9300 MB/s，一般磁盘约150 MB/s)，随机访问时间更是以纳
+秒计算(一般磁盘约10 ms，双通道DDR3-1333可以达到0.05 ms),所以这种数据库的读写性能很高，主要用在对性能要求极高的环境中，但
+是在服务器关闭后会立即丢失全部存储的数据。常见的例子有MySQL的MEMORY存储引擎、eXtremeDB、FastDB、SQLite、Microsoft SQL 
+Server Compact等。
+
+GraphDB 是一个企业图形数据存储引擎，它使用C#语言开发，并且是开源的，对于非商业目的可以免费下载，但如果用于商业目的则需要
+购买商业许可。
+图形数据库和我们常说的NoSQL数据库存储方式是不同的，它们更善于处理一类特定的问题：数据集包含了大量的关系，需要快速高效地
+遍历这些关系。
+图形数据库一个常见的用例就是用来存储社交关系或社交图，通常，这些社交图由许多节点组成，节点之间存在许多独立的关系，这是传
+统关系数据库很难处理好的问题域。
+
+
+Linux页缓存
+为了提高读写文件的速度，linux系统采用一种页缓存机制。当应用程序调用read、write等函数读写文件的时候，系统并不立即与硬盘进
+行操作，而是查看需要读写的数据是否已经在页缓存中，如果不在，则从硬盘中读取。当写入使，只是将数据写入到页缓存，然后使用系
+统进程pdflush根据一定算法写入至硬盘。
+系统当前页缓存大小等数据可以通过查看/proc/meminfo文件知道。其中与页缓存息息相关的三个字段是：
+Cached：当前页缓存大小
+Dirty：页缓存中等待被写入硬盘数据大小
+Writeback：正在写入硬盘数据大小，这个值一般为0，没办法，硬盘写入速度太快了。。。。
+
+刷新页缓存的pdflush进程：
+系统中只能有2～8个pdflush进程，当前pdflush进程个数可以通过/proc/sys/vm/nr_pdflush_threads查看.当系统中全部进程pdflush进
+程繁忙超过1秒，系统就会重新启动一个新的pdflush进程。当超过1秒后，系统当前全部pdflush进程空闲，系统就会杀死一个pdflush进
+程。
+系统有一些可控参数影响pdflush进程行为：
+/proc/sys/vm/dirty_writeback_centisecs ：默认为500（单位百分之一秒），间隔多长时间唤醒pdflush进程进行工作。
+但修改该配置文件一般不会对具体唤醒时间有影响，内核算法本身在根据系统实际情况进行控制。
+/proc/sys/vm/dirty_expire_centiseconds ：默认为3000（单位百分之一秒），数据在页缓存最长多久才会超时，刷入硬盘中。值得注
+意的是，默认时间为30秒，这说明一般情况下，数据会在页缓存30秒后，才会真正写入硬盘。
+/proc/sys/vm/dirty_background_ratio ：默认为10或者5（单位百分比），多少比例的Dirty数据在系统空闲内存中，才会刷入至硬盘。
+系统空闲内存计算方法＝Cached＋Memfree-Mapped.(这三个数据都是/proc/meminfo内）。
+总结下来：系统刷新页缓存正常下只有2种情况，1：数据放入页缓存超过时限。2：页缓存中待写入数据大小已到达上线。
+还有一种极端情况，当系统dirty数据大小大于等于/proc/sys/vm/dirty_ratio（默认为40%）时，write操作会堵塞，直至所有dirt写入
+至文件。可以通过dd if=/dev/zero of=hog模拟这种情况。
+
+
+Linux文件锁
+本文摘自http://www.centos.org/docs/5/html/5.2/Deployment_Guide/s2-proc-locks.html
+首先在linux系统下可以通过cat /proc/locks查看当前系统被锁的文件。如下例：
+1: FLOCK  ADVISORY  WRITE 2602 08:04:22380560 0 EOF
+2: POSIX  ADVISORY  WRITE 2362 08:04:14239302 0 EOF
+3: POSIX  ADVISORY  WRITE 2362 08:04:14239301 0 EOF
+4: POSIX  ADVISORY  WRITE 2362 08:04:14239300 0 EOF
+说明如下：
+第1列：每个锁终端显示的行号
+第2列：锁类型，FLOCK表明是老的系统调用 flock创建的， POSIX表明是较新 POSIX lockf系统调用创建的。
+第3列：第三列有2个可能值，一个是ADVISORY表明不阻止其他程序访问被锁的数据；MANDATORY表明其他程序没有权限访问被锁的数据
+第4列：第四列表示锁持有者是以读还是写方式打开文件的
+第5列;   锁持有进程ID
+第6列；被锁文件的ID号，格式为AJOR-DEVICE :MINOR-DEVICE :INODE-NUMBER
+第7列：被锁文件的开始和结束范围
+更多0
+
+
+/proc/loadavg查看系统负载
+1.65 1.62 1.55 1/594 6505
+这里的平均负载也就是可运行的进程的平均数
+前三个值分别对应系统在5分钟、10分钟、15分钟内的平均负载
+第四个值的分子是正在运行的进程数，分母是进程总数，最后一个是最近运行的进程ID号
+
+linux查看网卡是否连接
+分析ifconfig 的显示的配置文件，找到running 标记，就说明网络是连接上的
+以前知道通过ethtool可以查看网卡是否已连接，编程实现如下：
+#include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <errno.h>
+#include <net/if.h>
+struct ethtool_value {
+        __uint32_t      cmd;    
+        __uint32_t      data;   
+};
+int main(int argc, char* argv[]) 
+{
+        struct ethtool_value edata;
+        int fd = -1, err = 0;
+        struct ifreq ifr;
+        memset(&ifr, 0, sizeof(ifr));
+        strcpy(ifr.ifr_name, argv[1]);
+        fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (fd < 0) {
+                perror("Cannot get control socket");
+                return 70;
+        }
+        
+        edata.cmd = 0x0000000a;
+        ifr.ifr_data = (caddr_t)&edata;
+        err = ioctl(fd, 0x8946, &ifr);
+        if (err == 0) { 
+                fprintf(stdout, "Link detected: %s/n", edata.data ? "yes":"no");
+         } 
+        else if (errno != EOPNOTSUPP){
+                perror("Cannot get link status");
+        }
+        return 0;
+}&nbsp;
+
+
+Linux下Buffer cache与Page cache的区别
+http://www.sqlparty.com/linux%E4%B8%8Bbuffer-cache%E4%B8%8Epage-cache%E7%9A%84%E5%8C%BA%E5%88%AB/
+Buffer cache是针对磁盘块的缓存，也就是在没有文件系统的情况下，直接对磁盘进行操作的数据会缓存到buffer cache中，例如，文件
+系统的元数据都会缓存到buffer cache中。这样就加快对磁盘上数据的访问。buffer cache的内容对应磁盘上一个块（block），块通常为
+1K，都是连续的。在linux下，为了更有效的使用物理内存，操作系统自动使用所有空闲内存作为Buffer Cache使用。当程序需要更多内存
+时，操作系统会自动减小Buffer Cache的大小。
+
+Page cache是映射到文件，在文件层面上的数据会缓存到page cache。文件的逻辑层需要映射到实际的物理磁盘，这种映射关系由文件系
+统来完成。当page cache的数据需要刷新时，page cache中的数据交给buffer cache，这种处理在2.6版本的内核之后就变的很简单了，
+没有真正意义上的cache操作。
+补充一点，在文件系统层每个设备都会分配一个def_blk_ops的文件操作方法，这是设备的操作方法，在每个设备的inode下面会存在一个
+radix tree，这个radix tree下面将会放置缓存数据的page页。这个page的数量将会在free程序的buffer一栏中显示。如果设备做了文件
+系统，那么会生成一个inode，这个inode会分配ext3_ops之类的操作方法，这些方法是文件系统的方法，在这个inode下面同样存在一个
+radix tree，这里会缓存文件的page页，缓存页的数量在free程序的cache一栏进行统计。从上面的分析可以看出，2.6内核中的buffer
+cache和page cache在处理上是保持一致的，但是存在概念上的差别，page cache针对文件的cache，buffer是针对磁盘块数据的cache。
+buffer cache核心目标是连接速度慢的设备(磁盘)和速度快的设备(内存)，使进程的等待减少。
+Page cache核心目标是提高内存查找的命中率。
+(http://blog.sina.com.cn/s/blog_4be8884501010frq.html)
+page cache是一种策略，使用完的page并不是立即放到内核的free page list中，而是暂时缓存着以备再次使用。这样系统中的缓存page 
+就会越来越多，而free page越来越少。怎么办呢？系统通过内核线程来完成缓存中页面的回收工作，这些内核线程是定期被调用的，平时
+则处在睡眠的状态，如果进程需要page而free page严重短缺的时候，进程可以唤醒这些内核线程来回收缓存的页面，这样，一方面缓存，
+一方面回收达到一种平衡，同时改善了系统的性能。内核中在多处使用了page cache策略，最典型的有：页面交换，和磁盘文件的读取。
+不过实现的方法无非是让不同状态的page，处在不同的list中，而回收的内核线程从可以回收的队列中回收page。
+page cache是与文件映射对应的，而swap cache是与匿名页对应的。如果一个内存页面不是文件映射，则在换入换出的时候加入到swap
+cache，如果是文件映射，则不需要交换缓冲.这两个相同的就是都是address_space，都有相对应的文件操作。
+
+
+
